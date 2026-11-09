@@ -163,15 +163,15 @@ notebooks/
 You only need Python (3.10 or later); no GPU required.
 
 ```bash
-git clone https://github.com/diego-dupuy/Clasificador-Neumonia-Pediatrica.git
-cd Clasificador-Neumonia-Pediatrica
+git clone https://github.com/diego-dupuy/Paediatric-pneumonia-classifier.git
+cd Paediatric-pneumonia-classifier
 pip install -r requirements.txt
 python app.py
 ```
 
 Then open the address shown in the terminal (usually http://127.0.0.1:7860) in your browser.
 The first time, the app downloads the trained model (45 MB) from the
-[repository release](https://github.com/diego-dupuy/Clasificador-Neumonia-Pediatrica/releases/tag/modelo).
+[repository release](https://github.com/diego-dupuy/Paediatric-pneumonia-classifier/releases/tag/modelo).
 The weights are not stored with the code because Git keeps every version of every file, so the repository would
 grow with each retraining.
 

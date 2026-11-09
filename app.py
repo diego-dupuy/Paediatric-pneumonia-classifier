@@ -29,7 +29,7 @@ METRICS_PATH = MODEL_PATH.parent / "metrics.json"  # test-set metrics, if availa
 
 # The trained weights are not stored in the code (45 MB binary file): they are attached
 # to a GitHub release and downloaded once if they are not on this computer yet.
-RELEASE_URL = ("https://github.com/diego-dupuy/Clasificador-Neumonia-Pediatrica"
+RELEASE_URL = ("https://github.com/diego-dupuy/Paediatric-pneumonia-classifier"
                "/releases/download/modelo")
 for path in (MODEL_PATH, METRICS_PATH):
     if not path.exists():
