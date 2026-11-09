@@ -33,7 +33,8 @@ Hay casi **3 radiografías con neumonía por cada sana**. Este desequilibrio hac
    * `weighted`: añade **pesos por clase** en la función de pérdida para compensar el desequilibrio.
    * `weighted_aug`: añade **data augmentation**: recorte aleatorio, rotación de ±10° y cambios de brillo y contraste,
      sin volteo horizontal, porque cambiaría el lado del corazón.
-6. **Evaluación** en las 624 radiografías de test: sensibilidad, especificidad, precisión, exactitud y F1.
+6. **Evaluación:** sensibilidad, especificidad, precisión, exactitud, F1 y AUC. El modelo final se **elige con
+   la validación** y el test (624 radiografías) solo se reporta, para no inflar los resultados.
 7. **Grad-CAM** de **todos** los falsos negativos, más una medida sencilla de cuánta atención cae en la zona central
    de la imagen frente a los bordes.
 

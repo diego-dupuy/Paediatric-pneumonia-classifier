@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
 import torch  # noqa: E402
-from sklearn.metrics import confusion_matrix  # noqa: E402
+from sklearn.metrics import confusion_matrix, roc_auc_score  # noqa: E402
 
 from .config import CLASS_NAMES, EXPERIMENTS, RESULTS_DIR  # noqa: E402
 from .dataset import make_loaders  # noqa: E402
@@ -31,15 +31,18 @@ def load_model(name, device):
 
 @torch.no_grad()  # nothing is learnt here, so gradients are not computed
 def predict(model, loader, device):
-    """Return the real labels and the predicted labels of every image in the loader."""
-    labels, preds = [], []
+    """Return the real labels, the predicted labels and the probability of pneumonia
+    of every image in the loader."""
+    labels, preds, probs = [], [], []
     for images, y in loader:
+        scores = model(images.to(device))
         labels.extend(y.tolist())
-        preds.extend(model(images.to(device)).argmax(1).cpu().tolist())  # highest score wins
-    return np.array(labels), np.array(preds)
+        preds.extend(scores.argmax(1).cpu().tolist())  # highest score wins
+        probs.extend(torch.softmax(scores, dim=1)[:, 1].cpu().tolist())  # P(pneumonia)
+    return np.array(labels), np.array(preds), np.array(probs)
 
 
-def clinical_metrics(labels, preds):
+def clinical_metrics(labels, preds, probs):
     """Metrics from the confusion matrix (positive class = Pneumonia).
 
     TP: pneumonia detected          FN: pneumonia missed (most dangerous error)
@@ -55,6 +58,9 @@ def clinical_metrics(labels, preds):
         # "pneumonia" would already give 62 % on this test set.
         "accuracy": (tp + tn) / (tp + tn + fp + fn),
         "f1": 2 * precision * sensitivity / (precision + sensitivity),  # balance of both
+        # AUC: probability that a random pneumonia X-ray gets a higher score than a random
+        # normal one. Summarises performance over ALL thresholds (0.5 = chance, 1 = perfect).
+        "auc": roc_auc_score(labels, probs),
         "TP": int(tp), "TN": int(tn), "FP": int(fp), "FN": int(fn),
     }
 
@@ -97,10 +103,18 @@ def plot_history(name, path):
 
 
 def evaluate(name, device):
-    """Evaluate one experiment on the test set and save metrics and figures."""
+    """Evaluate one experiment and save metrics and figures.
+
+    Metrics are computed on the validation set too: the final model should be CHOSEN
+    with validation results, and the test set only REPORTED, so the test numbers are
+    not optimistically biased by the choice.
+    """
     loaders, _ = make_loaders(EXPERIMENTS[name])
-    labels, preds = predict(load_model(name, device), loaders["test"], device)
-    metrics = clinical_metrics(labels, preds)
+    model = load_model(name, device)
+    labels, preds, probs = predict(model, loaders["test"], device)
+    metrics = clinical_metrics(labels, preds, probs)
+    val = clinical_metrics(*predict(model, loaders["val"], device))
+    metrics.update({f"val_{k}": val[k] for k in ("sensitivity", "specificity", "auc")})
     out = RESULTS_DIR / name
     (out / "metrics.json").write_text(json.dumps(metrics, indent=2))
     plot_confusion(labels, preds, f"Test set ({name})", out / "confusion_matrix.png")
