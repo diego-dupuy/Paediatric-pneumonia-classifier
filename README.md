@@ -1,163 +1,166 @@
 <div align="center">
 
-# Clasificación de neumonía pediátrica en radiografías de tórax
+# Paediatric Pneumonia Classification on Chest X-rays
 
 **ResNet18 (transfer learning) · PyTorch · Grad-CAM**
 
 </div>
 
-Clasificador binario (**Sano / Neumonía**) de radiografías de tórax de niños de 1 a 5 años. Además de entrenar el modelo,
-el objetivo es **entender cuándo y por qué falla**, revisando sus errores con Grad-CAM.
+**Diego Dupuy Álamo** · Biomedical Engineering, Universitat Politècnica de València
 
-Es un proyecto de aprendizaje autónomo, con especial cuidado en evaluar el modelo de forma rigurosa
-(ver [Decisiones de diseño](#decisiones-de-diseño)).
+Binary classifier (**Normal / Pneumonia**) for chest X-rays of children aged 1 to 5. Besides training the model,
+the goal is to **understand when and why it fails**, by reviewing its errors with Grad-CAM.
 
-**Resultado del modelo final en test:** sensibilidad 95.9 %, especificidad 76.9 %, AUC 0.953
-(ver [Resultados](#resultados)).
+It is a self-directed learning project, with special care in evaluating the model rigorously
+(see [Design decisions](#design-decisions)).
 
-Incluye una [aplicación de demostración](#aplicación-de-demostración) que analiza una radiografía (PNG, JPG o DICOM),
-muestra el mapa Grad-CAM y genera un informe PDF:
+**Final model on the test set:** sensitivity 95.9 %, specificity 76.9 %, AUC 0.953
+(see [Results](#results)).
 
-![Aplicación de demostración](docs/figures/demo_app.gif)
+It includes a [demo app](#demo-app) that analyses an X-ray (PNG, JPG or DICOM), shows the Grad-CAM heat map
+and generates a PDF report:
 
-## Datos
-*Chest X-Ray Images (Pneumonia)* (Kermany et al., 2018), publicado en Kaggle.
+![Demo app](docs/figures/demo_app.gif)
 
-| Conjunto | Sanas | Neumonía |
+## Data
+*Chest X-Ray Images (Pneumonia)* (Kermany et al., 2018), published on Kaggle.
+
+| Set | Normal | Pneumonia |
 |---|---|---|
-| Entrenamiento | 1 341 | 3 875 |
+| Training | 1,341 | 3,875 |
 | Test | 234 | 390 |
 
-Hay casi **3 radiografías con neumonía por cada sana**. Este desequilibrio hace que el modelo tienda a decir "neumonía".
+There are almost **3 pneumonia X-rays for every normal one**. This imbalance pushes the model towards answering "pneumonia".
 
-## Método
-1. **Preprocesado:** redimensionado a 224 × 224 y normalización con la media y desviación de ImageNet.
-2. **Validación por paciente:** la carpeta `val` oficial solo tiene 16 imágenes, así que separo un 15 % de
-   entrenamiento como validación, **agrupando por paciente** para que un mismo niño no aparezca en los dos conjuntos.
-3. **Modelo:** ResNet18 preentrenada en ImageNet, con las capas convolucionales congeladas y una última capa nueva de 2 salidas.
-4. **Entrenamiento:** Adam (lr = 0.001), CrossEntropy y *early stopping* sobre la pérdida de validación (paciencia 4).
-5. **Tres experimentos**, cambiando una sola cosa cada vez:
-   * `baseline`: sin pesos por clase ni data augmentation (referencia).
-   * `weighted`: añade **pesos por clase** en la función de pérdida para compensar el desequilibrio.
-   * `weighted_aug`: añade **data augmentation**: recorte aleatorio, rotación de ±10° y cambios de brillo y contraste,
-     sin volteo horizontal, porque cambiaría el lado del corazón. Cada época el modelo ve versiones distintas de cada
-     radiografía, lo que le obliga a fijarse en la anatomía y no en detalles concretos de cada imagen.
+## Method
+1. **Preprocessing:** resize to 224 × 224 and normalise with the ImageNet mean and standard deviation.
+2. **Patient-level validation:** the official `val` folder only has 16 images, so I hold out 15 % of the training set
+   as validation, **grouped by patient** so that the same child never appears in both sets.
+3. **Model:** ResNet18 pre-trained on ImageNet, with the convolutional layers frozen and a new final layer with 2 outputs.
+4. **Training:** Adam (lr = 0.001), cross-entropy and *early stopping* on the validation loss (patience 4).
+5. **Three experiments**, changing one thing at a time:
+   * `baseline`: no class weights and no data augmentation (reference).
+   * `weighted`: adds **class weights** to the loss function to compensate for the imbalance.
+   * `weighted_aug`: adds **data augmentation**: random crop, ±10° rotation and brightness/contrast changes,
+     without horizontal flips, because they would move the heart to the other side. In every epoch the model sees a
+     different version of each X-ray, which forces it to focus on the anatomy rather than on details of specific images.
 
-     ![Ejemplos de data augmentation](docs/figures/augmentation_examples.png)
-6. **Evaluación:** sensibilidad, especificidad, precisión, exactitud, F1 y AUC. El modelo final se **elige con
-   la validación** y el test (624 radiografías) solo se reporta, para no inflar los resultados.
-7. **Grad-CAM** de **todos** los falsos negativos, más una medida sencilla de cuánta atención cae en la zona central
-   de la imagen frente a los bordes.
+     ![Data augmentation examples](docs/figures/augmentation_examples.png)
+6. **Evaluation:** sensitivity, specificity, precision, accuracy, F1 and AUC. The final model is **chosen on the
+   validation set**, and the test set (624 X-rays) is only reported, so that the results are not inflated.
+7. **Grad-CAM** of **all** false negatives, plus a simple measure of how much of the attention falls in the central
+   region of the image rather than near the borders.
 
-## Resultados
-Entrenado en Google Colab (GPU T4). Todas las cifras son del conjunto de **test** (624 radiografías) con umbral 0.5,
-salvo la tabla de validación.
+## Results
+Trained on Google Colab (T4 GPU). All figures are on the **test set** (624 X-rays) with a 0.5 threshold,
+except for the validation table.
 
-| Experimento | Sensibilidad | Especificidad | Precisión | Exactitud | F1 | AUC | FP | FN |
+| Experiment | Sensitivity | Specificity | Precision | Accuracy | F1 | AUC | FP | FN |
 |---|---|---|---|---|---|---|---|---|
 | `baseline` | 98.5 % | 53.0 % | 77.7 % | 81.4 % | 86.9 % | 0.936 | 110 | 6 |
 | `weighted` | 98.2 % | 52.1 % | 77.4 % | 80.9 % | 86.6 % | 0.939 | 112 | 7 |
 | **`weighted_aug`** | 95.9 % | **76.9 %** | **87.4 %** | **88.8 %** | **91.4 %** | **0.953** | **54** | 16 |
 
-**Validación** (≈ 780 imágenes separadas por paciente), que es con lo que se elige el modelo:
+**Validation** (≈ 780 images split by patient), which is what the model is selected on:
 
-| Experimento | Sensibilidad | Especificidad | AUC | Exactitud equilibrada |
+| Experiment | Sensitivity | Specificity | AUC | Balanced accuracy |
 |---|---|---|---|---|
 | `baseline` | 98.1 % | 92.1 % | 0.995 | 95.1 % |
 | `weighted` | 97.8 % | 92.1 % | 0.995 | 95.0 % |
 | `weighted_aug` | 95.6 % | 95.8 % | 0.989 | **95.7 %** |
 
-![Matrices de confusión en test](docs/figures/confusion_matrices.png)
+![Test confusion matrices](docs/figures/confusion_matrices.png)
 
-### Conclusiones
-1. **Modelo final: `weighted_aug`.** Es el que tiene mayor exactitud equilibrada en validación (media de sensibilidad
-   y especificidad), y la elección se hace sin mirar el test.
-2. **Los pesos por clase no cambian nada** (`baseline` y `weighted` son prácticamente iguales). Es decir, los falsos
-   positivos no se deben al desequilibrio de clases.
-3. **Hay una diferencia grande entre validación y test.** En validación la especificidad es del 92 %, pero en test baja
-   al 53 %: el modelo funciona bien con imágenes parecidas a las de entrenamiento y peor con las de test, que parecen
-   tener una distribución algo distinta. Sin la validación por paciente no se habría detectado.
-4. **El data augmentation es lo que más ayuda:** reduce los falsos positivos a la mitad (110 → 54), sube la
-   especificidad 24 puntos y reduce la diferencia validación–test de 39 a 19 puntos. A cambio, aparecen 10 falsos
-   negativos más (sensibilidad 98.5 % → 95.9 %). Como también sube el AUC (0.936 → 0.953), el modelo no solo mueve el
-   umbral, sino que separa mejor las dos clases.
-5. Con data augmentation la pérdida de validación aún bajaba en la época 15, así que entrenar más épocas podría mejorar
-   algo el resultado.
+### Conclusions
+1. **Final model: `weighted_aug`.** It has the highest balanced accuracy on validation (mean of sensitivity and
+   specificity), and the choice is made without looking at the test set.
+2. **Class weights change nothing** (`baseline` and `weighted` are practically identical). In other words, the false
+   positives are not caused by the class imbalance.
+3. **There is a large gap between validation and test.** Specificity is 92 % on validation but drops to 53 % on test:
+   the model works well on images similar to the training ones and worse on the test images, which seem to follow a
+   somewhat different distribution. Without patient-level validation this would not have been detected.
+4. **Data augmentation is what helps most:** it halves the false positives (110 → 54), raises specificity by
+   24 points and shrinks the validation–test gap from 39 to 19 points. In exchange, there are 10 more false
+   negatives (sensitivity 98.5 % → 95.9 %). Since the AUC also improves (0.936 → 0.953), the model does not just
+   shift the threshold: it separates the two classes better.
+5. With data augmentation the validation loss was still decreasing at epoch 15, so training for more epochs could
+   improve the result slightly.
 
-![Curvas de entrenamiento](docs/figures/training_curves.png)
+![Training curves](docs/figures/training_curves.png)
 
-### Grad-CAM: ¿dónde mira el modelo cuando falla?
-Para cada radiografía con neumonía se calcula qué fracción del mapa Grad-CAM cae en la zona central de la imagen
-(quitando un margen del 15 % en cada borde). Si el mapa fuera uniforme, esa fracción sería del **49 %**.
+### Grad-CAM: where does the model look when it fails?
+For each pneumonia X-ray, I compute the fraction of the Grad-CAM map that falls in the central region of the image
+(removing a 15 % margin on each side). If the map were uniform, that fraction would be **49 %**.
 
 | | `baseline` | `weighted_aug` |
 |---|---|---|
-| Falsos negativos | 6 | 16 |
-| Atención central (todas las neumonías) | 50.7 % | 56.1 % |
-| Atención central (solo falsos negativos) | **35.2 %** | **45.5 %** |
+| False negatives | 6 | 16 |
+| Central attention (all pneumonia cases) | 50.7 % | 56.1 % |
+| Central attention (false negatives only) | **35.2 %** | **45.5 %** |
 
-* **En los dos modelos, los falsos negativos miran menos al centro que la media** (y por debajo del 49 % de un mapa
-  uniforme). En muchos de estos casos la atención está en el abdomen, el cuello o las esquinas, fuera de los pulmones.
-* **El data augmentation aumenta la atención central** (50.7 % → 56.1 %): con los recortes aleatorios, la información
-  de los bordes deja de ser fiable y el modelo se apoya más en la zona de los pulmones.
-* Es una medida sencilla: el rectángulo central no coincide exactamente con los pulmones y el mapa Grad-CAM tiene poca
-  resolución (7 × 7), así que sirve para ver tendencias, no casos concretos.
+* **In both models, false negatives look at the centre less than average** (and below the 49 % of a uniform map).
+  In many of these cases the attention is on the abdomen, the neck or the corners, outside the lungs.
+* **Data augmentation increases central attention** (50.7 % → 56.1 %): with random crops, the information near the
+  borders is no longer reliable, so the model relies more on the lung region.
+* It is a simple measure: the central rectangle does not match the lungs exactly and the Grad-CAM map has a low
+  resolution (7 × 7), so it shows trends, not individual cases.
 
-![Grad-CAM de los falsos negativos (weighted_aug)](docs/figures/gradcam_fn_weighted_aug.png)
+![Grad-CAM of the false negatives (weighted_aug)](docs/figures/gradcam_fn_weighted_aug.png)
 
 <details>
-<summary>Grad-CAM de los falsos negativos de <code>baseline</code></summary>
+<summary>Grad-CAM of the <code>baseline</code> false negatives</summary>
 
-![Grad-CAM de los falsos negativos (baseline)](docs/figures/gradcam_fn_baseline.png)
+![Grad-CAM of the false negatives (baseline)](docs/figures/gradcam_fn_baseline.png)
 </details>
 
-### Limitaciones y posibles mejoras
-* Un único conjunto de datos de un solo centro; no hay validación externa.
-* El umbral es 0.5 fijo. Se podría ajustar en validación para recuperar sensibilidad.
-* Solo se entrena la última capa. Ajustar también el último bloque de la ResNet (`layer4`) o segmentar los pulmones
-  antes de clasificar son los siguientes pasos naturales.
+### Limitations and possible improvements
+* A single dataset from a single centre; there is no external validation.
+* The threshold is fixed at 0.5. It could be tuned on validation to recover sensitivity.
+* Only the last layer is trained. Fine-tuning the last ResNet block (`layer4`) as well, or segmenting the lungs
+  before classifying, are the natural next steps.
 
-## Decisiones de diseño
-* **Validación por paciente:** la carpeta `val` oficial solo tiene 16 imágenes, insuficientes para el *early stopping*.
-  Por eso uso unas 780 imágenes de entrenamiento, separadas por paciente para evitar fuga de datos.
-* **Métricas completas:** con clases desequilibradas, la sensibilidad sola engaña (decir siempre "neumonía" da un 100 %).
-  Por eso reporto también especificidad, precisión, exactitud y F1.
-* **Un cambio por experimento:** así se puede medir el efecto de los pesos por clase y el del data augmentation por separado.
-* **Grad-CAM de todos los falsos negativos**, no de un caso aislado, más una medida numérica de dónde mira el modelo.
-* **Código modular** (`src/`) y un notebook solo para entrenar en Colab con GPU. Semilla fija para reproducibilidad,
-  y la clave de Kaggle se lee de los *secrets* de Colab, nunca del código.
+## Design decisions
+* **Patient-level validation:** the official `val` folder only has 16 images, not enough for *early stopping*.
+  So I use about 780 training images, split by patient to avoid data leakage.
+* **Complete metrics:** with imbalanced classes, sensitivity alone is misleading (always answering "pneumonia"
+  gives 100 %). That is why I also report specificity, precision, accuracy and F1.
+* **One change per experiment:** this way the effect of class weights and of data augmentation can be measured separately.
+* **Grad-CAM of all false negatives**, not of a single hand-picked case, plus a numeric measure of where the model looks.
+* **Modular code** (`src/`) and a notebook only for training on Colab with a GPU. Fixed random seed for reproducibility,
+  and the Kaggle key is read from Colab *secrets*, never from the code.
 
-## Estructura
+## Structure
 ```
 src/
-├── config.py      # rutas, hiperparámetros y definición de los experimentos
-├── dataset.py     # transformaciones, data augmentation, separación por paciente, DataLoaders
-├── model.py       # ResNet18 con transfer learning
-├── train.py       # bucle de entrenamiento con early stopping
-├── evaluate.py    # métricas en test, matriz de confusión, comparación de experimentos
-├── gradcam.py     # Grad-CAM de los falsos negativos y medida de atención central
-├── inference.py   # análisis de una radiografía: predicción, Grad-CAM y controles de calidad
-├── dicom_utils.py # lectura de DICOM con anonimización previa
-└── report.py      # informe PDF a partir de una plantilla fija
-app.py             # aplicación web de demostración (Gradio)
-examples/          # radiografías públicas de ejemplo para la aplicación
+├── config.py      # paths, hyperparameters and definition of the experiments
+├── dataset.py     # transforms, data augmentation, patient-level split, DataLoaders
+├── model.py       # ResNet18 with transfer learning
+├── train.py       # training loop with early stopping
+├── evaluate.py    # test metrics, confusion matrix, comparison of experiments
+├── gradcam.py     # Grad-CAM of the false negatives and central attention measure
+├── inference.py   # analysis of one X-ray: prediction, Grad-CAM and quality checks
+├── dicom_utils.py # DICOM reading with prior anonymisation
+└── report.py      # PDF report from a fixed template
+app.py             # demo web app (Gradio)
+examples/          # public example X-rays for the app
 notebooks/
-└── train_colab.ipynb   # ejecuta todo en Google Colab (GPU)
+└── train_colab.ipynb   # runs everything on Google Colab (GPU)
 ```
 
-## Aplicación de demostración
-`app.py` es una interfaz web para usar el modelo entrenado de principio a fin:
-1. **Entrada:** se sube una radiografía en PNG, JPG o **DICOM**. En DICOM se eliminan antes de nada los datos
-   identificativos del paciente (nombre, ID, fechas, centro… y etiquetas privadas).
-2. **Análisis:** el modelo devuelve la probabilidad de neumonía y el **mapa Grad-CAM** de la clase elegida (qué zonas
-   han pesado más en la decisión), junto con unos controles básicos de la imagen (resolución, proporción, color, contraste).
-3. **Informe PDF** generado con una plantilla fija: resultado, imágenes, controles de calidad, rendimiento del
-   modelo en test y limitaciones.
+## Demo app
+`app.py` is a web interface to use the trained model end to end:
+1. **Input:** upload an X-ray in PNG, JPG or **DICOM**. For DICOM, the patient's identifying data (name, ID, dates,
+   institution… and private tags) is removed before anything else.
+2. **Analysis:** the model returns the probability of pneumonia and the **Grad-CAM map** of the predicted class
+   (which regions weighed most in the decision), together with basic image checks (resolution, aspect ratio,
+   colour, contrast).
+3. **PDF report** generated from a fixed template: result, images, quality checks, model performance on the test set
+   and limitations.
 
-> ⚠️ Demostración técnica: **no es un producto sanitario** ni apto para uso clínico. Úsala solo con imágenes públicas o anonimizadas.
+> ⚠️ Technical demo: **not a medical device** and not suitable for clinical use. Use it only with public or anonymised images.
 
-### Probar la aplicación en tu ordenador
-Solo hace falta Python (3.10 o superior); no necesita GPU.
+### Run the app on your computer
+You only need Python (3.10 or later); no GPU required.
 
 ```bash
 git clone https://github.com/diego-dupuy/Clasificador-Neumonia-Pediatrica.git
@@ -166,18 +169,18 @@ pip install -r requirements.txt
 python app.py
 ```
 
-Después abre en el navegador la dirección que aparece en la terminal (normalmente http://127.0.0.1:7860).
-La primera vez, la aplicación descarga el modelo entrenado (45 MB) desde la
-[Release del repositorio](https://github.com/diego-dupuy/Clasificador-Neumonia-Pediatrica/releases/tag/modelo).
-Los pesos no se guardan junto al código porque Git conserva todas las versiones de cada archivo y el repositorio
-crecería con cada reentrenamiento.
+Then open the address shown in the terminal (usually http://127.0.0.1:7860) in your browser.
+The first time, the app downloads the trained model (45 MB) from the
+[repository release](https://github.com/diego-dupuy/Clasificador-Neumonia-Pediatrica/releases/tag/modelo).
+The weights are not stored with the code because Git keeps every version of every file, so the repository would
+grow with each retraining.
 
-La carpeta `examples/` incluye 4 radiografías del test público (Kermany et al., 2018; licencia CC BY 4.0) y un DICOM
-con datos de paciente **inventados**, para probar la anonimización.
+The `examples/` folder contains 4 X-rays from the public test set (Kermany et al., 2018; CC BY 4.0 licence) and a
+DICOM file with **made-up** patient data, to try the anonymisation.
 
-## Cómo reentrenar el modelo
-Abre [`notebooks/train_colab.ipynb`](notebooks/train_colab.ipynb) en Colab, elige GPU T4, añade tu clave de Kaggle
-como *secret* (`KAGGLE_API_TOKEN`) y ejecuta todas las celdas. En local (con GPU):
+## How to retrain the model
+Open [`notebooks/train_colab.ipynb`](notebooks/train_colab.ipynb) in Colab, select a T4 GPU, add your Kaggle key
+as a *secret* (`KAGGLE_API_TOKEN`) and run all the cells. Locally (with a GPU):
 
 ```bash
 pip install -r requirements.txt
@@ -186,11 +189,11 @@ python -m src.evaluate --experiment weighted_aug
 python -m src.gradcam --experiment weighted_aug
 ```
 
-## Bibliografía
-He, K., Zhang, X., Ren, S., & Sun, J. (2016). Deep residual learning for image recognition. En *Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition* (pp. 770–778). https://doi.org/10.1109/CVPR.2016.90
+## References
+He, K., Zhang, X., Ren, S., & Sun, J. (2016). Deep residual learning for image recognition. In *Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition* (pp. 770–778). https://doi.org/10.1109/CVPR.2016.90
 
 Kermany, D. S., Goldbaum, M., Cai, W., Valentim, C. C. S., Liang, H., Baxter, S. L., McKeown, A., Yang, G., Wu, X., Yan, F., Dong, J., Prasadha, M. K., Pei, J., Ting, M. Y. L., Zhu, J., Li, C., Hewett, S., Dong, J., Ziyar, I., … Zhang, K. (2018). Identifying medical diagnoses and treatable diseases by image-based deep learning. *Cell, 172*(5), 1122–1131.e9. https://doi.org/10.1016/j.cell.2018.02.010
 
-Mooney, P. (2018). *Chest X-Ray Images (Pneumonia)* [Conjunto de datos]. Kaggle. https://www.kaggle.com/datasets/paultimothymooney/chest-xray-pneumonia
+Mooney, P. (2018). *Chest X-Ray Images (Pneumonia)* [Data set]. Kaggle. https://www.kaggle.com/datasets/paultimothymooney/chest-xray-pneumonia
 
-Selvaraju, R. R., Cogswell, M., Das, A., Vedantam, R., Parikh, D., & Batra, D. (2017). Grad-CAM: Visual explanations from deep networks via gradient-based localization. En *Proceedings of the IEEE International Conference on Computer Vision* (pp. 618–626). https://doi.org/10.1109/ICCV.2017.74
+Selvaraju, R. R., Cogswell, M., Das, A., Vedantam, R., Parikh, D., & Batra, D. (2017). Grad-CAM: Visual explanations from deep networks via gradient-based localization. In *Proceedings of the IEEE International Conference on Computer Vision* (pp. 618–626). https://doi.org/10.1109/ICCV.2017.74
