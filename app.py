@@ -4,6 +4,8 @@ the Grad-CAM heat map and a PDF report.
 Run locally:   python app.py   (then open the address shown in the terminal)
 Model weights: results/<experiment>/model.pth produced by src/train.py,
                or another path given in the MODEL_PATH environment variable.
+               If the file does not exist, the trained model is downloaded from
+               the GitHub release of this repository the first time the app runs.
 """
 
 import json
@@ -13,6 +15,7 @@ from pathlib import Path
 
 import gradio as gr
 import numpy as np
+import torch
 from PIL import Image
 
 from src.config import IMAGE_SIZE, RESULTS_DIR
@@ -23,6 +26,16 @@ from src.report import DISCLAIMER, build_report
 EXPERIMENT = os.environ.get("EXPERIMENT", "weighted_aug")  # model used by the demo
 MODEL_PATH = Path(os.environ.get("MODEL_PATH", RESULTS_DIR / EXPERIMENT / "model.pth"))
 METRICS_PATH = MODEL_PATH.parent / "metrics.json"  # test-set metrics, if available
+
+# The trained weights are not stored in the code (45 MB binary file): they are attached
+# to a GitHub release and downloaded once if they are not on this computer yet.
+RELEASE_URL = ("https://github.com/diego-dupuy/Clasificador-Neumonia-Pediatrica"
+               "/releases/download/modelo")
+for path in (MODEL_PATH, METRICS_PATH):
+    if not path.exists():
+        print(f"Downloading {path.name} from the GitHub release...")
+        path.parent.mkdir(parents=True, exist_ok=True)
+        torch.hub.download_url_to_file(f"{RELEASE_URL}/{path.name}", str(path))
 
 classifier = PneumoniaClassifier(MODEL_PATH)
 model_metrics = json.loads(METRICS_PATH.read_text()) if METRICS_PATH.exists() else None

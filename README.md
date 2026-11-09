@@ -15,6 +15,11 @@ Es un proyecto de aprendizaje autónomo, con especial cuidado en evaluar el mode
 **Resultado del modelo final en test:** sensibilidad 95.9 %, especificidad 76.9 %, AUC 0.953
 (ver [Resultados](#resultados)).
 
+Incluye una [aplicación de demostración](#aplicación-de-demostración) que analiza una radiografía (PNG, JPG o DICOM),
+muestra el mapa Grad-CAM y genera un informe PDF:
+
+![Aplicación de demostración](docs/figures/demo_app.gif)
+
 ## Datos
 *Chest X-Ray Images (Pneumonia)* (Kermany et al., 2018), publicado en Kaggle.
 
@@ -151,18 +156,28 @@ notebooks/
 
 > ⚠️ Demostración técnica: **no es un producto sanitario** ni apto para uso clínico. Úsala solo con imágenes públicas o anonimizadas.
 
-![Aplicación de demostración](docs/figures/demo_app.png)
+### Probar la aplicación en tu ordenador
+Solo hace falta Python (3.10 o superior); no necesita GPU.
+
+```bash
+git clone https://github.com/diego-dupuy/Clasificador-Neumonia-Pediatrica.git
+cd Clasificador-Neumonia-Pediatrica
+pip install -r requirements.txt
+python app.py
+```
+
+Después abre en el navegador la dirección que aparece en la terminal (normalmente http://127.0.0.1:7860).
+La primera vez, la aplicación descarga el modelo entrenado (45 MB) desde la
+[Release del repositorio](https://github.com/diego-dupuy/Clasificador-Neumonia-Pediatrica/releases/tag/modelo).
+Los pesos no se guardan junto al código porque Git conserva todas las versiones de cada archivo y el repositorio
+crecería con cada reentrenamiento.
 
 La carpeta `examples/` incluye 4 radiografías del test público (Kermany et al., 2018; licencia CC BY 4.0) y un DICOM
 con datos de paciente **inventados**, para probar la anonimización.
 
-```bash
-python app.py   # usa results/weighted_aug/model.pth (o la ruta indicada en MODEL_PATH)
-```
-
-## Cómo ejecutarlo
+## Cómo reentrenar el modelo
 Abre [`notebooks/train_colab.ipynb`](notebooks/train_colab.ipynb) en Colab, elige GPU T4, añade tu clave de Kaggle
-como *secret* (`KAGGLE_API_TOKEN`) y ejecuta todas las celdas. En local:
+como *secret* (`KAGGLE_API_TOKEN`) y ejecuta todas las celdas. En local (con GPU):
 
 ```bash
 pip install -r requirements.txt
