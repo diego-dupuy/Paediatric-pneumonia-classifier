@@ -63,7 +63,7 @@ def build_report(path, prediction, original, source_name, model_metrics=None,
 
     # 2) Images: input and Grad-CAM
     images = Table([[_image_flowable(original, 7.5), _image_flowable(prediction.heatmap, 7.5)],
-                    ["Input X-ray", "Grad-CAM (red = most influential for 'pneumonia')"]])
+                    ["Input X-ray", f"Grad-CAM (red = most influential for '{prediction.label}')"]])
     images.setStyle(TableStyle([("ALIGN", (0, 0), (-1, -1), "CENTER"),
                                 ("FONTSIZE", (0, 1), (-1, 1), 8)]))
     story += [Paragraph("Images", styles["Heading2"]), images, Spacer(1, 0.4 * cm)]

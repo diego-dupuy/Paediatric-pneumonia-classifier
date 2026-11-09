@@ -74,9 +74,16 @@ with gr.Blocks(title="Paediatric pneumonia classifier") as demo:
             label = gr.Label(label="Model output")
             details = gr.Markdown()
         with gr.Column():
-            heatmap = gr.Image(label="Grad-CAM: regions that pushed towards 'pneumonia'")
+            heatmap = gr.Image(label="Grad-CAM: regions that most influenced the model's output")
             report = gr.File(label="PDF report")
     upload.change(analyse, inputs=upload, outputs=[label, heatmap, details, report])
+
+    # Public example images from the test set of Kermany et al. (2018), CC BY 4.0.
+    # The DICOM file contains made-up patient data to show the anonymisation step.
+    examples_dir = Path(__file__).parent / "examples"
+    examples = sorted(str(p) for p in examples_dir.glob("*") if p.suffix in {".jpeg", ".dcm"})
+    if examples:
+        gr.Examples(examples=examples, inputs=upload, label="Examples (click one to analyse it)")
 
 if __name__ == "__main__":
     demo.launch()

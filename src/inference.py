@@ -58,8 +58,10 @@ class PneumoniaClassifier:
             prob = torch.softmax(scores, dim=1)[0, 1].item()
         label = CLASS_NAMES[1] if prob >= self.threshold else CLASS_NAMES[0]
 
-        # Heat map of the "pneumonia" class drawn over the resized X-ray
-        heat = self.cam(input_tensor=tensor, targets=[ClassifierOutputTarget(1)])[0]
+        # Heat map of the class the model chose (0 = Normal, 1 = Pneumonia), drawn over the
+        # resized X-ray: it shows which regions supported that decision
+        predicted_class = CLASS_NAMES.index(label)
+        heat = self.cam(input_tensor=tensor, targets=[ClassifierOutputTarget(predicted_class)])[0]
         base = np.asarray(image.resize((IMAGE_SIZE, IMAGE_SIZE)), dtype=np.float32) / 255
         overlay = show_cam_on_image(base, heat, use_rgb=True)
 
@@ -74,7 +76,7 @@ def quality_checks(image: Image.Image):
     width, height = image.size
     if min(width, height) < 256:
         warnings.append(f"Low resolution ({width} x {height} px); training images were larger.")
-    if not 0.6 <= width / height <= 1.6:
+    if not 0.5 <= width / height <= 2.0:  # the dataset includes images up to ~1.9 : 1
         warnings.append(f"Unusual aspect ratio ({width / height:.2f}); a chest X-ray is roughly square.")
 
     rgb = np.asarray(image.convert("RGB"), dtype=np.float32)
